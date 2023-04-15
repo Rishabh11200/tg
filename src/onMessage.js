@@ -1,13 +1,26 @@
-import { NewMessageEvent } from "telegram/events/index.js";
-import { checkStartCMD, checkSysMsg, removeStartCMD } from "./utlis.js";
-import { chat, help, helpMsg, ytMiniHelp } from "./constants.js";
+import {
+  checkAndUnlink,
+  checkStartCMD,
+  checkSysMsg,
+  download,
+  generateRandomSixDigitNumber,
+  removeStartCMD,
+} from "./utlis.js";
+import {
+  chat,
+  help,
+  helpMsg,
+  image,
+  ytMiniHelp,
+} from "./constants.js";
 import { Api, TelegramClient } from "telegram";
 import ytdl from "ytdl-core";
 import { onAudio, onVideo } from "./yt.js";
-import { openAIfunc } from "./openai.js";
+import { imageFunction, openAIfunc } from "./openai.js";
+import { NewMessageEvent } from "telegram/events/NewMessage.js";
 
 /**
- * @type {NewMessageEvent[]}
+ * @type {Api.Message[]}
  */
 globalThis.ytReplied = [];
 /**
@@ -16,6 +29,7 @@ globalThis.ytReplied = [];
  * @param {TelegramClient} client
  */
 export const onMessage = async (wholeMsg, client) => {
+  await client.getDialogs({ limit: 50 });
   const msg = wholeMsg.message.message;
   const isReply = wholeMsg.message.isReply;
   const from = wholeMsg.message.peerId.userId;
@@ -62,6 +76,47 @@ export const onMessage = async (wholeMsg, client) => {
     } else {
       await client.sendMessage(from, {
         message: "Please add prompt to think...",
+      });
+    }
+  }
+
+  if (checkStartCMD(image, msg)) {
+    const fileName = `./db/${from}${generateRandomSixDigitNumber()}.png`;
+    let query = removeStartCMD(image, msg.toLowerCase());
+    if (query.length > 0) {
+      /**
+       * @type {Api.Message}
+       */
+      let universalMsg = await client.sendMessage(from, {
+        message: "Generating...⏳🔮🌇",
+      });
+      let imgUrl = await imageFunction(query);
+      if (imgUrl.toString().startsWith("http")) {
+        download(imgUrl, fileName, async () => {
+          await client.editMessage(from, {
+            message: universalMsg.id,
+            text: "Uploading...⤴️",
+          });
+          await client
+            .sendFile(from, {
+              file: fileName,
+              forceDocument: true,
+            })
+            .then(async () => {
+              await client.deleteMessages(from, [universalMsg.id], {
+                revoke: true,
+              });
+            });
+          checkAndUnlink(fileName);
+        });
+      } else {
+        await client.sendMessage(from, {
+          message: `Error generating image: ⚠️ ${imgUrl}`,
+        });
+      }
+    } else {
+      await client.sendMessage(from, {
+        message: "Please add prompt to generate image...",
       });
     }
   }

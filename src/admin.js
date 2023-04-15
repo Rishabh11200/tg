@@ -10,13 +10,13 @@ import { addUser, deleteUser, getAll } from "./constants.js";
  * @param {TelegramClient} client
  */
 export const onMyMsg = async (wholeMsg, client) => {
-  let peerId = wholeMsg.message.peerId.userId.toString();
-  let originalID = wholeMsg.message.peerId.userId;
+  let peerId = wholeMsg.message.peerId?.userId?.toString();
+  let originalID = wholeMsg.message.peerId?.userId;
   const msg = wholeMsg.message.message;
 
   if (checkStartCMD(addUser, msg)) {
     const filePath = "./src/users.js";
-    fs.readFile(filePath, "utf-8", (err, data) => {
+    fs.readFile(filePath, "utf-8", async (err, data) => {
       if (err) throw err;
 
       const arrayStartIndex = data.indexOf("[");
@@ -24,16 +24,6 @@ export const onMyMsg = async (wholeMsg, client) => {
       const arrayData = data.slice(arrayStartIndex, arrayEndIndex + 1);
 
       const dataArray = eval(arrayData);
-      /* const nameToDelete = "dfdf";
-
-      const indexToDelete = dataArray.indexOf(nameToDelete);
-
-      if (indexToDelete !== -1) {
-        dataArray.splice(indexToDelete, 1);
-        console.log(`Deleted ${nameToDelete} from the array.`);
-      } else {
-        console.log(`${nameToDelete} not found in the array.`);
-      }*/
 
       const newMember = peerId.replace(/\D/g, "");
       dataArray.push(newMember);
@@ -43,11 +33,11 @@ export const onMyMsg = async (wholeMsg, client) => {
         JSON.stringify(dataArray) +
         data.slice(arrayEndIndex + 1);
 
+      await client.deleteMessages(originalID, [wholeMsg.message.id], {
+        revoke: true,
+      });
       fs.writeFile(filePath, updatedFileData, "utf-8", async (err) => {
         if (err) throw err;
-        await client.deleteMessages(originalID, [wholeMsg.message.id], {
-          revoke: true,
-        });
         await client.sendMessage(originalID, {
           message: "Added successfully✅",
         });
@@ -73,7 +63,8 @@ export const onMyMsg = async (wholeMsg, client) => {
             id: single,
           })
         );
-        allUsersName.push(`@${result.users[0].username}`);
+        let userName = result.users[0].username ?? result.users[0].firstName;
+        allUsersName.push(` ${result.users[0].username ? '@' : ''}${userName}`);
       });
 
       Promise.all(promises)

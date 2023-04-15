@@ -1,5 +1,6 @@
 import { Configuration, OpenAIApi } from "openai";
 import dot from "dotenv";
+import fs from "fs";
 dot.config();
 
 const configuration = new Configuration({
@@ -48,6 +49,27 @@ export const openAIfunc = async (query, singleChatID, sysMsg = null) => {
   let response = completion.data.choices[0].message;
   allChats[`${singleChatID}`].push(completion.data.choices[0].message);
   return `${response.content} \n\n__Thanks for using **YARRS-GPT**__`;
+};
+
+export const imageFunction = async (query) => {
+  try {
+    const response = await openaiConfigs.createImage({
+      prompt: query,
+      n: 1,
+      size: "1024x1024",
+    });
+    const image_url = response.data.data[0].url;
+    return image_url;
+  } catch (error) {
+    if (error.response) {
+      console.log(error.response.status);
+      console.log(error.response.data);
+      return { res: error.response.data, status: error.response.status };
+    } else {
+      console.log(error.message);
+      return error.message;
+    }
+  }
 };
 
 export function deleteExpiredObjects() {
