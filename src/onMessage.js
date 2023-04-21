@@ -6,13 +6,7 @@ import {
   generateRandomSixDigitNumber,
   removeStartCMD,
 } from "./utlis.js";
-import {
-  chat,
-  help,
-  helpMsg,
-  image,
-  ytMiniHelp,
-} from "./constants.js";
+import { chat, help, helpMsg, image, ytMiniHelp } from "./constants.js";
 import { Api, TelegramClient } from "telegram";
 import ytdl from "ytdl-core";
 import { onAudio, onVideo } from "./yt.js";
@@ -34,7 +28,19 @@ export const onMessage = async (wholeMsg, client) => {
   const isReply = wholeMsg.message.isReply;
   const from = wholeMsg.message.peerId.userId;
   if (checkStartCMD(help, msg)) {
-    await client.sendMessage(from, { message: helpMsg, parseMode: "md" });
+    await client.sendMessage(from, {
+      message: helpMsg,
+      parseMode: "md",
+    });
+    await client.invoke(
+      new Api.messages.SendReaction({
+        big: true,
+        addToRecent: true,
+        msgId: wholeMsg.message.id,
+        peer: from,
+        reaction: [new Api.ReactionEmoji({ emoticon: "🏆" })],
+      })
+    );
   }
 
   if (checkStartCMD(chat, msg)) {
@@ -49,10 +55,28 @@ export const onMessage = async (wholeMsg, client) => {
         response;
       if (finalQuery.systemMsg) {
         if (!finalQuery.query) {
+          await client.invoke(
+            new Api.messages.SendReaction({
+              big: true,
+              addToRecent: true,
+              msgId: wholeMsg.message.id,
+              peer: from,
+              reaction: [new Api.ReactionEmoji({ emoticon: "👎" })],
+            })
+          );
           await client.sendMessage(from, {
             message: "Please add query with system message to think...",
           });
         } else {
+          await client.invoke(
+            new Api.messages.SendReaction({
+              big: true,
+              addToRecent: true,
+              msgId: wholeMsg.message.id,
+              peer: from,
+              reaction: [new Api.ReactionEmoji({ emoticon: "🤔" })],
+            })
+          );
           responseReply = await client.sendMessage(from, {
             message: "Thinking...💭💭🤔",
           });
@@ -63,6 +87,15 @@ export const onMessage = async (wholeMsg, client) => {
           );
         }
       } else {
+        await client.invoke(
+          new Api.messages.SendReaction({
+            big: true,
+            addToRecent: true,
+            msgId: wholeMsg.message.id,
+            peer: from,
+            reaction: [new Api.ReactionEmoji({ emoticon: "🤔" })],
+          })
+        );
         responseReply = await client.sendMessage(from, {
           message: "Thinking...💭💭🤔",
         });
@@ -73,7 +106,25 @@ export const onMessage = async (wholeMsg, client) => {
         text: response,
         parseMode: "md",
       });
+      await client.invoke(
+        new Api.messages.SendReaction({
+          big: true,
+          addToRecent: true,
+          msgId: wholeMsg.message.id,
+          peer: from,
+          reaction: [new Api.ReactionEmoji({ emoticon: "😇" })],
+        })
+      );
     } else {
+      await client.invoke(
+        new Api.messages.SendReaction({
+          big: true,
+          addToRecent: true,
+          msgId: wholeMsg.message.id,
+          peer: from,
+          reaction: [new Api.ReactionEmoji({ emoticon: "👎" })],
+        })
+      );
       await client.sendMessage(from, {
         message: "Please add prompt to think...",
       });
@@ -90,6 +141,15 @@ export const onMessage = async (wholeMsg, client) => {
       let universalMsg = await client.sendMessage(from, {
         message: "Generating...⏳🔮🌇",
       });
+      await client.invoke(
+        new Api.messages.SendReaction({
+          big: true,
+          addToRecent: true,
+          msgId: wholeMsg.message.id,
+          peer: from,
+          reaction: [new Api.ReactionEmoji({ emoticon: "👀" })],
+        })
+      );
       let imgUrl = await imageFunction(query);
       if (imgUrl.toString().startsWith("http")) {
         download(imgUrl, fileName, async () => {
@@ -106,6 +166,15 @@ export const onMessage = async (wholeMsg, client) => {
               await client.deleteMessages(from, [universalMsg.id], {
                 revoke: true,
               });
+              await client.invoke(
+                new Api.messages.SendReaction({
+                  big: true,
+                  addToRecent: true,
+                  msgId: wholeMsg.message.id,
+                  peer: from,
+                  reaction: [new Api.ReactionEmoji({ emoticon: "😇" })],
+                })
+              );
             });
           checkAndUnlink(fileName);
         });
@@ -113,8 +182,28 @@ export const onMessage = async (wholeMsg, client) => {
         await client.sendMessage(from, {
           message: `Error generating image: ⚠️ ${imgUrl}`,
         });
+        setTimeout(async () => {
+          await client.invoke(
+            new Api.messages.SendReaction({
+              big: true,
+              addToRecent: true,
+              msgId: wholeMsg.message.id,
+              peer: from,
+              reaction: [new Api.ReactionEmoji({ emoticon: "👎" })],
+            })
+          );
+        }, 500);
       }
     } else {
+      await client.invoke(
+        new Api.messages.SendReaction({
+          big: true,
+          addToRecent: true,
+          msgId: wholeMsg.message.id,
+          peer: from,
+          reaction: [new Api.ReactionEmoji({ emoticon: "👎" })],
+        })
+      );
       await client.sendMessage(from, {
         message: "Please add prompt to generate image...",
       });
