@@ -67,22 +67,22 @@ export function generateRandomSixDigitNumber() {
  * @param {TelegramClient} client
  * @param {any} from
  * @param {string} filePath
+ * @param {number} uploadMessage
  * @param {number} startTime
  * @param {number} endTime
  * @param {number} percentage
  * @param {number} lastLogTime
- * @param {NewMessageEvent} uploadMessage
  * @param {Set} endNumbers
  */
 export async function sendFile(
   client,
   from,
   filePath,
+  uploadMessage,
   startTime = null,
   endTime = null,
   percentage = null,
   lastLogTime = 0,
-  uploadMessage = null,
   endNumbers = new Set()
 ) {
   let isVideo = filePath.includes("mp4");
@@ -94,8 +94,9 @@ export async function sendFile(
       let intPer = parseInt(percentage);
 
       if (pro < 0.01 && !startTime) {
-        uploadMessage = await client.sendMessage(from, {
-          message: "Uploading",
+        await client.editMessage(from, {
+          message: uploadMessage,
+          text: "Uploading...",
         });
         startTime = Date.now();
       }
@@ -110,17 +111,17 @@ export async function sendFile(
         const formattedSeconds = seconds.toString().padStart(2, "0");
         const formattedElapsedTime = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
         if (elapsedTime >= 3000 && elapsedTime <= 3100) {
-          if(!endNumbers.has(elapsedTime)) {
-          await client.editMessage(from, {
-            message: uploadMessage.id,
-            text: `Elapsed time: ${formattedElapsedTime}. \nUploading...⤴️: ${intPer}%`,
-          });
-          endNumbers.add(elapsedTime);
-        }
+          if (!endNumbers.has(elapsedTime)) {
+            await client.editMessage(from, {
+              message: uploadMessage,
+              text: `Elapsed time: ${formattedElapsedTime}. \nUploading...⤴️: ${intPer}%`,
+            });
+            endNumbers.add(elapsedTime);
+          }
         }
         if (elapsedTime >= 5000 + lastLogTime) {
           await client.editMessage(from, {
-            message: uploadMessage.id,
+            message: uploadMessage,
             text: `Elapsed time: ${formattedElapsedTime}. \nUploading...⤴️: ${intPer}%`,
           });
           lastLogTime += 5000;
@@ -140,7 +141,7 @@ export async function sendFile(
           const formattedSeconds = seconds.toString().padStart(2, "0");
           const formattedElapsedTime = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
           await client.editMessage(from, {
-            message: uploadMessage.id,
+            message: uploadMessage,
             text: `✅Uploaded in: ${formattedElapsedTime}.`,
           });
           endNumbers.add(percentage);
@@ -148,4 +149,14 @@ export async function sendFile(
       }
     },
   });
+}
+
+/**@param {string} input */
+export function processString(input) {
+  const words = input.split(" ");
+  if (words.length > 1) {
+    return words;
+  } else {
+    return [input];
+  }
 }

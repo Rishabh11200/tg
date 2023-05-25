@@ -18,12 +18,13 @@
     "fluent-ffmpeg": "^2.1.2",
     "fs": "^0.0.1-security",
     "input": "^1.0.1",
-    "jimp": "^0.22.7",
+    "jimp": "^0.3.5",
     "moment": "^2.29.4",
     "openai": "^3.2.1",
     "request": "^2.88.2",
     "telegram": "^2.15.15",
-    "ytdl-core": "^4.11.4"
+    "ytdl-core": "^4.11.4",
+    "ytpl": "^2.3.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

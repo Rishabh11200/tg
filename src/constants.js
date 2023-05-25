@@ -12,6 +12,21 @@ export const helpMsg =
 export const ytMiniHelp =
   "Reply to youtube link: **Audio** / **Video**__?__👆🏻🤔💭";
 
+  /**
+   * 
+   * @param {number} itemCount 
+   * @returns {String}
+   */
+export const playlist = (itemCount) => {
+  return (
+    `Hey, Found youtube playlist with ${itemCount} items...` +
+    `\nReply to the playlist link if you want to download whole playlist as an audio✨.` +
+    `\n Example: ` +
+    `\n1. audio 5 __(if you want to download first 5 items from playlist)__` +
+    `\n2. audio __(only audio for all the items from playlist)__`
+  );
+};
+
 export const chat = ["!chat", ".chat", "_chat", "#chat"];
 export const help = ["!help", ".help", "_help", "#help"];
 export const yt = ["!yt", ".yt", "_yt", "#yt"];

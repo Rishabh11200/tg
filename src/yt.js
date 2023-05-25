@@ -9,24 +9,37 @@ import {
   sendFile,
 } from "./utlis.js";
 import cp from "child_process";
-import { TelegramClient } from "telegram";
+import { TelegramClient, client } from "telegram";
+import ytpl from "ytpl";
 
 /**
  *
  * @param {string} ytLink
  * @param {TelegramClient} client
  * @param {any} toChat
+ * @param {boolean} isPlaylist
+ * @param {number} indexOfPlaylist
  */
-export const onAudio = async (ytLink, client, toChat) => {
+export const onAudio = async (
+  ytLink,
+  client,
+  toChat,
+  isPlaylist = false,
+  indexOfPlaylist = 0
+) => {
   const universalName = `${toChat}${generateRandomSixDigitNumber()}`;
   try {
     let thumbnailDownloaded = false;
     const info = await ytdl.getInfo(ytLink);
-    let tempTitle = info?.videoDetails?.title.replace(/\s+/g, "_").trim();
+    const tempTitle = info?.videoDetails?.title.replace(/\s+/g, "_").trim();
     const regex = /[^a-zA-Z0-9_]/g;
-    let title = tempTitle.replace(regex, "");
+    const title = isPlaylist
+      ? `${indexOfPlaylist}_${tempTitle.replace(regex, "")}`
+      : tempTitle.replace(regex, "");
+
     fs.writeFileSync(`./db/${universalName}.mp3`, "");
     fs.writeFileSync(`./db/${universalName}1.mp3`, "");
+
     const audioStream = ytdl(ytLink, {
       filter: "audioonly",
       format: "mp3",
@@ -84,26 +97,20 @@ export const onAudio = async (ytLink, client, toChat) => {
             .output(`./db/${universalName}1.mp3`)
             .on("end", async () => {
               fs.renameSync(`./db/${universalName}1.mp3`, `./db/${title}.mp3`);
-              await sendFile(client, toChat, `./db/${title}.mp3`).then(
-                async (sent) => {
-                  await client.deleteMessages(toChat, [converting.id], {
-                    revoke: true,
-                  });
-                  checkAndUnlink(`./db/${universalName}.jpg`);
-                  checkAndUnlink(`./db/${universalName}.mp3`);
-                  checkAndUnlink(`./db/${universalName}1.mp3`);
-                  checkAndUnlink(`./db/${title}.mp3`);
-                }
-              );
+              await sendFile(
+                client,
+                toChat,
+                `./db/${title}.mp3`,
+                converting.id
+              ).then(async (sent) => {
+                cleanupFiles(title);
+              });
             })
             .on("error", function (err, stdout, stderr) {
               console.error("An error occurred: " + err.message);
               console.error("FFmpeg stdout: " + stdout);
               console.error("FFmpeg stderr: " + stderr);
-              checkAndUnlink(`./db/${universalName}.jpg`);
-              checkAndUnlink(`./db/${universalName}.mp3`);
-              checkAndUnlink(`./db/${universalName}1.mp3`);
-              checkAndUnlink(`./db/${title}.mp3`);
+              cleanupFiles(title);
             })
             .run();
         } else {
@@ -125,40 +132,37 @@ export const onAudio = async (ytLink, client, toChat) => {
             .output(`./db/${universalName}1.mp3`)
             .on("end", async () => {
               fs.renameSync(`./db/${universalName}1.mp3`, `./db/${title}.mp3`);
-              await sendFile(client, toChat, `./db/${title}.mp3`).then(
-                async (sent) => {
-                  await client.deleteMessages(toChat, [converting.id], {
-                    revoke: true,
-                  });
-                  checkAndUnlink(`./db/${universalName}.jpg`);
-                  checkAndUnlink(`./db/${universalName}.mp3`);
-                  checkAndUnlink(`./db/${universalName}1.mp3`);
-                  checkAndUnlink(`./db/${title}.mp3`);
-                }
-              );
+              await sendFile(
+                client,
+                toChat,
+                `./db/${title}.mp3`,
+                converting.id
+              ).then(async (sent) => {
+                cleanupFiles(title);
+              });
             })
             .on("error", function (err, stdout, stderr) {
               console.error("An error occurred: " + err.message);
               console.error("FFmpeg stdout: " + stdout);
               console.error("FFmpeg stderr: " + stderr);
-              checkAndUnlink(`./db/${universalName}.mp3`);
-              checkAndUnlink(`./db/${universalName}1.mp3`);
-              checkAndUnlink(`./db/${universalName}.jpg`);
+              cleanupFiles(title);
             })
             .run();
         }
       })
       .on("error", (error) => {
-        checkAndUnlink(`./db/${universalName}.mp3`);
-        checkAndUnlink(`./db/${universalName}1.mp3`);
-        checkAndUnlink(`./db/${universalName}.jpg`);
+        cleanupFiles();
         console.log("ffmpeg", error);
       });
   } catch (error) {
+    cleanupFiles();
+    console.log("Some error YTAUDIO: ", error);
+  }
+  function cleanupFiles(title) {
     checkAndUnlink(`./db/${universalName}.mp3`);
     checkAndUnlink(`./db/${universalName}1.mp3`);
     checkAndUnlink(`./db/${universalName}.jpg`);
-    console.log("Some error YTAUDIO: ", error);
+    checkAndUnlink(`./db/${title}.mp3`);
   }
 };
 
@@ -349,3 +353,26 @@ export const onVideo = async (ytLink, client, toChat) => {
   }
 };
 
+/**
+ *
+ * @param {string} ytPLLink
+ * @param {TelegramClient} client
+ * @param {any} toChat
+ * @param {number} itemsToDownload
+ */
+export const onPlaylist = async (ytPLLink, client, toChat, itemsToDownload) => {
+  /**  @type {ytpl.Result} */
+  const playlist = await ytpl(ytPLLink);
+  let count = 1,
+    promises = [];
+  for (let i = 0; i < playlist.items.length; i++) {
+    const singleVideo = playlist.items[i];
+    const ytLink = singleVideo.shortUrl;
+    if (itemsToDownload !== 0 && count > itemsToDownload) {
+      break;
+    }
+    promises.push(onAudio(ytLink, client, toChat, true, i + 1));
+    count++;
+  }
+  await Promise.all(promises);
+};

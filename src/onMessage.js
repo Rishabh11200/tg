@@ -4,19 +4,28 @@ import {
   checkSysMsg,
   download,
   generateRandomSixDigitNumber,
+  processString,
   removeStartCMD,
 } from "./utlis.js";
-import { chat, help, helpMsg, image, ytMiniHelp } from "./constants.js";
+import {
+  chat,
+  help,
+  helpMsg,
+  image,
+  playlist,
+  ytMiniHelp,
+} from "./constants.js";
 import { Api, TelegramClient } from "telegram";
 import ytdl from "ytdl-core";
-import { onAudio, onVideo } from "./yt.js";
+import { onAudio, onPlaylist, onVideo } from "./yt.js";
 import { imageFunction, openAIfunc } from "./openai.js";
 import { NewMessageEvent } from "telegram/events/NewMessage.js";
+import ytpl from "ytpl";
 
-/**
- * @type {Api.Message[]}
- */
+/** @type {Api.Message[]} */
 globalThis.ytReplied = [];
+/** @type {Api.Message[]} */
+globalThis.playlistReplied = [];
 /**
  *
  * @param {NewMessageEvent} wholeMsg
@@ -214,6 +223,15 @@ export const onMessage = async (wholeMsg, client) => {
     await client.sendMessage(from, { message: ytMiniHelp }).then((msg) => {
       globalThis.ytReplied.push(msg);
     });
+    await client.invoke(
+      new Api.messages.SendReaction({
+        big: true,
+        addToRecent: true,
+        msgId: wholeMsg.message.id,
+        peer: from,
+        reaction: [new Api.ReactionEmoji({ emoticon: "😇" })],
+      })
+    );
   }
 
   if (
@@ -236,6 +254,57 @@ export const onMessage = async (wholeMsg, client) => {
       }
       if (msgLow === "video") {
         await onVideo(quotedLink.message.toString(), client, from);
+      }
+    }
+  }
+
+  if (ytpl.validateID(msg.toString())) {
+    await client.invoke(
+      new Api.messages.SendReaction({
+        big: true,
+        addToRecent: true,
+        msgId: wholeMsg.message.id,
+        peer: from,
+        reaction: [new Api.ReactionEmoji({ emoticon: "😇" })],
+      })
+    );
+    /**  @type {ytpl.Result} */
+    const allPlaylist = await ytpl(msg.toString());
+    await client
+      .sendMessage(from, { message: playlist(allPlaylist.estimatedItemCount) })
+      .then((msg) => {
+        globalThis.playlistReplied.push(msg);
+      });
+  }
+
+  if (
+    isReply &&
+    (msg.toString().toLowerCase().startsWith("audio") ||
+      msg.toString().toLowerCase().startsWith("video"))
+  ) {
+    if (globalThis.playlistReplied.length > 0) {
+      globalThis.playlistReplied.map(async (single) => {
+        await client.deleteMessages(from, [single], {
+          revoke: true,
+        });
+      });
+    }
+    const quotedLink = await wholeMsg.message.getReplyMessage();
+    const msgLow = msg.toString().toLowerCase();
+    if (ytpl.validateID(quotedLink.message.toString())) {
+      let checkMsg = processString(msgLow);
+      if (checkMsg[0] === "audio") {
+        /** @type {number} */
+        let itemsToDownload = 0;
+        if (checkMsg.length > 0) {
+          itemsToDownload = parseInt(checkMsg[1]);
+        }
+        await onPlaylist(
+          quotedLink.message.toString(),
+          client,
+          from,
+          itemsToDownload
+        );
       }
     }
   }
